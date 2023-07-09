@@ -22,19 +22,13 @@ class MongoAPI:
 
     def read(self):
         documents = self.collection.find()
-        output = [{item: data[item] for item in data} for data in documents]
+        output = [{item: data[item] for item in data if item != '_id'} for data in documents]
         return output
     
     def readd(self,id):
-        documents = self.collection.find()
-        print(id,file=sys.stderr)
-        # objInstance = str(ObjectId(id))
-        for data in documents:
-            print(data,file=sys.stderr)
-            if data['id'] ==  str(id):
-              return data
-            
-        return {'Status' : 'id not found'}
+        documents = self.collection.find_one({'id' : int(id)})
+        output = [{item: documents[item] for item in documents if item != '_id'}]
+        return output
 
     def write(self, data):
         new_document = data['Document']
@@ -54,6 +48,7 @@ class MongoAPI:
 
     def update(self, data):
         filt = data['Filter']
+        print(filt,file=sys.stderr)
         updated_data = {"$set": data['DataToBeUpdated']}
         response = self.collection.update_one( filt,updated_data)
         print(filt,file=sys.stderr)
@@ -74,14 +69,16 @@ def base():
                     mimetype='application/json')
 
 
-@app.route('/users', methods=['GET'])
+
+@app.route('/user', methods=['GET'])
 def DBread():
-    data = request.json
     obj1 = MongoAPI()
     response = obj1.read()
     return Response(response=json.dumps(response),
                     status=200,
                     mimetype='application/json')
+
+
 
 @app.route('/users/<id>', methods=['GET'])
 def DBreadd(id):
@@ -97,7 +94,7 @@ def DBreadd(id):
 @app.route('/users', methods=['POST'])
 def DBwrite():
     data = request.json
-    if data is 'Document' not in data:
+    if 'Document' not in data:
         return Response(response=json.dumps({"Error": "Please provide document information"}),status=400,mimetype='application/json')
     obj1 = MongoAPI()
     response = obj1.write(data)
@@ -105,10 +102,11 @@ def DBwrite():
 
 
 
-@app.route('/users', methods=['PUT'])
-def DBupdate():
+@app.route('/users/<id>', methods=['PUT'])
+def DBupdate(id):
     data = request.json
-    if 'Filter' not in data and 'DataToBeUpdated' not in data:
+    data['Filter'] = {'id' : int(id)}
+    if 'Filter' not in data and  'DataToBeUpdated' not in data:
         return Response(response=json.dumps({"Error": "Please provide filter and data to be updated"}),
                         status=400,
                         mimetype='application/json')
@@ -118,9 +116,12 @@ def DBupdate():
                     status=200,
                     mimetype='application/json')
 
-@app.route('/users', methods=['DELETE'])
-def DBdelete():
+
+
+@app.route('/users/<id>', methods=['DELETE'])
+def DBdelete(id):
     data = request.json
+    data['Filter'] = {'id' : int(id)}
     if 'Filter' not in data:
         return Response(response=json.dumps({"Error": "Please provide filter"}),
                         status=400,
@@ -130,6 +131,8 @@ def DBdelete():
     return Response(response=json.dumps(response),
                     status=200,
                     mimetype='application/json')
+
+
 
 
 if __name__ == '__main__':
